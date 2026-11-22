@@ -35,7 +35,6 @@ flowchart TD
 ### 1. Extract
 
 - Retrieves aircraft state vector data from the OpenSky Network API.
-- Collects aircraft metadata and flight state information.
 - Saves raw API responses as timestamped JSON files.
 
 ### 2. Transform
@@ -45,7 +44,59 @@ flowchart TD
 - Converts timestamps into UTC-based datetime values.
 - Cleans aircraft callsigns.
 - Adds pipeline metadata such as snapshot timestamp and source filename.
-- Exports the transformed dataset to Parquet using Snappy compression.
+- Exports the transformed dataset to Parquet format.
+
+### 3. Load
+
+- Reads processed Parquet datasets.
+- Validates required columns.
+# SkyTrace ✈️
+
+### Flight Data Engineering Pipeline
+
+An end-to-end data engineering pipeline that collects aircraft state data from the OpenSky Network API, processes and validates the data, stores it in Parquet format, and loads it into PostgreSQL, with Apache Airflow orchestrating the workflow.
+
+---
+
+## Project Overview
+
+SkyTrace is a data engineering project designed to build an automated pipeline for collecting and processing flight tracking data.
+
+The pipeline retrieves aircraft state vectors from the OpenSky Network API, transforms the raw data into a structured format, stores intermediate datasets as Parquet files, and loads the processed data into PostgreSQL for querying and analysis.
+
+Apache Airflow is used to orchestrate and automate the Extract, Transform, and Load (ETL) workflow.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[OpenSky Network API] --> B[Extract]
+    B --> C[Raw JSON]
+    C --> D[Transform]
+    D --> E[Processed Parquet]
+    E --> F[Load]
+    F --> G[(PostgreSQL)]
+
+    H[Apache Airflow] -. Orchestration .-> B
+    H -. Orchestration .-> D
+    H -. Orchestration .-> F
+```
+
+## Pipeline Workflow
+
+### 1. Extract
+
+- Retrieves aircraft state vector data from the OpenSky Network API.
+- Saves raw API responses as timestamped JSON files.
+
+### 2. Transform
+
+- Converts raw JSON state vectors into structured tabular data using Pandas.
+- Handles missing values and data type conversions.
+- Converts timestamps into UTC-based datetime values.
+- Cleans aircraft callsigns.
+- Adds pipeline metadata such as snapshot timestamp and source filename.
+- Exports the transformed dataset to Parquet format.
 
 ### 3. Load
 
@@ -55,15 +106,22 @@ flowchart TD
 - Uses a staging table to support bulk loading.
 - Prevents duplicate records through a composite key and conflict handling.
 
+Two loader implementations are maintained:
+
+- `load.py` — standalone loader for executing the loading process independently.
+- `load_airflow.py` — loader implementation used by the Airflow Load task.
+
 ### 4. Orchestration
 
-Apache Airflow manages the pipeline execution and task dependencies.
+Apache Airflow manages pipeline execution, task dependencies, and scheduling.
 
 The DAG executes the following tasks sequentially:
 
 `Extract → Transform → Load`
 
 The pipeline is configured to run every 30 minutes.
+
+Airflow handles workflow orchestration, while the individual Python scripts perform data extraction, transformation, and loading.
 
 ---
 
@@ -75,9 +133,8 @@ The pipeline is configured to run every 30 minutes.
 | OpenSky Network API | Aircraft data source |
 | Pandas | Data processing and transformation |
 | Parquet | Intermediate columnar storage |
-| Snappy | Parquet compression |
 | PostgreSQL | Target database |
-| Apache Airflow | Workflow orchestration |
+| Apache Airflow | Workflow orchestration and scheduling |
 | Git | Version control |
 
 ---
@@ -107,6 +164,7 @@ SkyTrace-Pipeline/
 │   ├── extract.py
 │   ├── transform.py
 │   ├── load.py
+│   ├── load_airflow.py
 │   └── duplicate_check.py
 │
 ├── logs/
@@ -121,10 +179,10 @@ The pipeline uses separate storage layers for raw and processed data.
 | Layer | Format | Description |
 |---|---|---|
 | Raw | JSON | Original API responses |
-| Processed | Parquet | Transformed, structured, compressed datasets |
-| Target | PostgreSQL | Queryable and persistent analytical data |
+| Processed | Parquet | Transformed and structured intermediate datasets |
+| Target | PostgreSQL | Persistent, queryable analytical data |
 
-Parquet provides columnar storage and compression, making it suitable for efficient intermediate data storage and analytical workloads.
+Parquet provides columnar storage, making it suitable for efficient intermediate data storage and analytical workloads.
 
 ## Database
 
@@ -142,7 +200,7 @@ This allows aircraft observations from different snapshots to be stored while pr
 
 ## Data Validation
 
-Dataset validation is performed using a Jupyter Notebook before ingestion.
+A Jupyter Notebook is used for exploratory dataset validation and analysis.
 
 Validation includes:
 
@@ -157,13 +215,13 @@ Validation includes:
 
 Detailed project documentation is available in the `docs/` directory:
 
-- [Project Overview](docs/01_project-overview.md)
-- [Environment Setup](docs/02-environment-setup.md)
-- [Data Source](docs/03-data-source.md)
-- [ETL Pipeline](docs/04-etl-pipeline.md)
-- [Database Design](docs/05-database-design.md)
-- [Data Validation](docs/06-data-validation.md)
-- [Airflow Setup](docs/07-airflow-setup.md)
+- Project Overview
+- Environment Setup
+- Data Source
+- ETL Pipeline
+- Database Design
+- Data Validation
+- Airflow Setup
 
 ## Future Improvements
 
